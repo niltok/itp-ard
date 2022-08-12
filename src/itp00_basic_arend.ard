@@ -1,0 +1,258 @@
+-- ITP00: Arend 基础
+
+-- 这是个单行注释
+{- 这是个多行注释 -}
+
+{- 在 Arend 中所有的关键字都由反斜线 "\" 开头，比如 \func \data \Type
+   这样设计的好处是命名不会与关键字冲突（但是不习惯的时候看着挺难受的…… -}
+
+-- 这是一个没有参数，返回值恒为 0 的函数
+\func const0 => 0
+{- 在 Arend 中并没有一般编程语言里的可以定义的变量或者常量
+   它没有可变的量，而常量用没有参数的函数定义（类似于 Haskell）
+   至于变量这个词，有时候用来指代函数的参数 -}
+
+{- Arend 中函数体的开始用 "=>" 标识，而不是 "="
+   这是因为 Arend 作为一个方便编写证明的语言
+   "=" 会被用来表示更为常用的数学意义上的「相等」
+   而且 "=>" 表示具体的函数， "->" 表示函数的类型
+   这样看上去非常协调 -}
+
+-- 一个返回参数的函数
+\func id-nat (x : Nat) : Nat => x
+{- 类型的标注使用 ":"，这里的 "(x : Nat)" 为函数定义了一个类型为 Nat 名叫 x 的参数
+   这里的 Nat 代表的是自然数，是 Natural number 的简称
+   而第二处出现的 ": Nat" 则标识了该函数会返回一个类型为 Nat 的值
+   实际上，这里的返回值类型是可以被类型检查器推断出来的
+   你可以试试删掉这里的类型标注，它仍然能通过类型检查-}
+
+-- 和 const0 一样
+\func const0' => id-nat 0
+{- 这里调用了刚刚定义的 id-nat
+   函数调用和常见的语言也不太一样
+   和 Haskell 之类的语言一样只需要把函数和参数用空格隔开放在一起 -}
+
+-- const0'' 也和 const0 一样
+\func fa (a b : Nat) (f : Nat -> Nat) => f a
+\func const0'' => fa ((fa 0) 1 id-nat) (id-nat 2) id-nat
+{- 这里举了个更为复杂的例子，fa 是一个有三个参数的函数
+   前两个参数 a 和 b的类型都是 Nat 所以放在了一起标注
+   而第三个参数 f 的类型是把 Nat 映射到 Nat 的函数类型
+   观察 const0'' 的函数体可以注意到，多个参数的函数的调用本质上是一个一个参数传递的
+   也就是说如果有 f : Nat -> (Nat -> Nat) 那么就有 f 0 : Nat -> Nat 和 (f 0) 1 : Nat
+   而且 "->" 是右结合的，函数应用是左结合的，上面的内容也可以简单写为
+   f : Nat -> Nat -> Nat 和 f 0 1 : Nat
+   这种用单参函数表示多参函数的方式就叫柯里化(Currying) -}
+
+-- 小练习：标注 fa' 的类型（在下面的 "{?}" 处填入即可，右边的黄色圈圈变成绿色就说明填对了
+\func fa' : {?} => fa
+{- 之前提到过其实这里不标注 fa' 的类型，类型检查器也能推断出来
+   那么，有没有办法看到类型检查器推断的结果呢？
+   右键 fa' 函数体里的 fa，在弹出菜单里点击 "Show Expression Type"
+   或者把光标移动到 fa 上按 Ctrl + Shift + P
+   弹出的窗口中就显示了 fa 的类型，不过里面出现了一个新的关键字 \Pi，以及一个特殊的符号 "_"
+   \Pi 可以用函数参数的标注方式来标注参数类型，比如 \Pi (a b : Nat) -> Nat 和 Nat -> Nat -> Nat 是等价的
+   可是 \Pi 这样给参数命名的标注方式有什么用呢？
+   想想如果某个参数如果有出现在后续参数的类型中，就需要一个符号来绑定这个参数，以供使用
+   而 "_" 这个符号在用于参数名字的时候表示这个参数的名字后面用不到，类型检查器可以忽略这个东西具体叫啥 -}
+
+-- 所以 fa 也可以这样定义
+\func fa'' (a _ : Nat) (f : Nat -> Nat) => f a
+
+-- 函数应用练习：
+\func function-apply-exercise
+  (A B C D E F G H I J K L : \Type)
+  (f : A -> B)
+  (g : A -> C)
+  (h : C -> B)
+  (i : B -> F)
+  (j : G -> H)
+  (k : F -> K)
+  (l : J -> I)
+  (m : K -> L)
+  (n : E -> L)
+  (a : A) : L => {?}
+{- 这里出现了一个新的关键字 \Type 用于标注一个参数是一个类型
+   这样定义出的函数就像是其他语言里的泛型函数 -}
+
+-- 一点关于 \Type 的例子
+\func id' (A : \Type) (a : A) => a
+\func id-nat' => id' Nat
+\func const0''' => id' _ 0
+{- 当 "_" 作为函数参数出现的时候，意思是这个参数可以由其他参数推断出来
+   比如这里的 id' _ 0 中因为第二个参数 0 的类型是 Nat 可以推断出第一个参数是 Nat
+   那么很显然，id' 的第一个参数大多数时候都能被推断出来
+   对于这种多数时候都可以被推断出的参数可以声明为隐式参数，只有无法推断时才需要手动传入 -}
+
+-- 隐式参数用花括号包起来
+\func id {A : \Type} (a : A) => a
+\func id-nat'' => id {Nat}
+\func const0'''' => id 0
+-- 隐式参数手工传入时也需要用花括号包起来
+
+-- 小练习：为 id 标注类型（提示，上面提到过的 \Pi
+\func id'' : {?} => id
+{- 可以注意到函数体里的 id 有条红色的下划线
+   光标移动上去会提示 Cannot infer parameter 'A' of definition 'id'
+   而如果完成了正确的标注，隐式参数就可以被推断出来，错误也就消失了 -}
+
+-- 既然是函数式编程语言，那么匿名函数自然是必不可少的
+\func id-nat''' => \lam (x : Nat) => x
+
+-- 如果匿名函数的参数类型能被推断出也可以不标
+\func const0''''' => fa 0 1 (\lam x => x)
+
+{- Arend 中的数据结构采用了代数数据类型的模型
+   也就是说一个数据类型的对象是通过该类型的一组构造器构造出来的
+   构造器可以通过参数存储数据，并通过枚举或归纳的方式涵盖所有可构造对象
+   （这样的描述不好懂，还是直接看例子： -}
+
+-- 定义布尔数据类型
+\data Bool       -- Bool 数据类型的对象
+  | true         -- 要么是 true
+  | false        -- 要么是 false
+
+{- 这个 Bool 类型有两个没有参数的构造器 true 和 false 分别代表布尔中的真与假
+   通过两个构造器可以构造出两个不同的 Bool 类型对象 true 和 false
+   并且 Bool 类型只存在这两个不同的对象
+   这是一种通过枚举定义数据类型的例子 -}
+
+-- 如果想当一个 Bool 变量为 true 或 false 时分别做不同的处理就得使用模式匹配了
+\func not (x : Bool) : Bool \elim x
+  | true => false      -- x 为 true 时得到 false
+  | false => true      -- x 为 false 时得到 true
+{- \elim x 表示函数体由对 x 的一组匹配组成
+   注意这种情况下函数必须标注返回值类型，可以试试在上面删掉 \elim 前的 ": Bool" 以后就会报错
+   如果想同时匹配更多参数可以用逗号分隔，如 \elim y, x
+   且下面的匹配值也用逗号分隔，如 | true, false => {?} -}
+
+-- 如果按照参数顺序匹配所有参数可以使用 \with 代替 \elim（且这种情况下可以省略 \with
+\func \infixl 3 and (x y : Bool) : Bool \with
+  | true, true => true
+  | _, _ => false
+{- 在匹配中的 "_" 的意思是匹配任意值
+   \infix, \infixl 和 \infixr 关键字可以用来定义中缀运算符，它们分别代表了无结合，左结合和右结合三种情况
+   而这里的 3 表示运算优先级
+   这里的中缀使用起来就像是 true and false -}
+
+-- 模式匹配练习：
+\func \infixl 2 or (x y : Bool) : Bool => {?}
+\func if {R : \Type} (b : Bool) (x y : R) : R => {?}
+-- 可以注意到一点，Arend 中并没有其他语言里常见的分支语句 if，处理 Bool 类型完全靠模式匹配
+
+-- 接下来介绍两个非常常见的类型
+\data Empty
+\data Unit | unit
+{- Unit 比较普通，就是一个只有一个对象的单例类型，不过后面会遇到很多和它同构的类型
+   同构关系在 Arend 中很重要！
+   而 Emtpy 就比较有趣了，它没有任何构造器
+   那么一方面我们没办法构造类型为 Emtpy 的对象，另一方面不存在任何对象为 Emtpy 类型
+   这个类型有些类似于 C 语言当中的 void -}
+
+-- 对于没有任何构造器的类型的参数，可以用 () 匹配，可以直接得到任意类型的结果
+\func absurd {P : \Type} (p : Empty) : P
+  | ()
+{- 「可以直接得到任意类型的结果」听上去挺离谱的
+   但是仔细想想，既然 p 是无法构造的，从控制流的角度来说这个函数并没有办法被调用，所以并不能真的构造出任意类型的对象
+   而且后文会指出接受这个设定能带来许多便利
+   另外，带有 () 的匹配分支是可以省略的，上面这个匹配直接删掉也能编译通过
+   不过保留这样的分支一定程度上可以提高可读性 -}
+
+-- 也许会有大聪明灵机一动写出下面的代码尝试构造出 Empty
+\func empty : Empty => empty
+{- 从理论上来说，无限递归确确实实是 Empty 类型的
+   但是从控制流的角度来看，尝试通过这种方式构造时会进入无限递归，并没办法真的得到实际的对象
+   为了和实际运算情况保持一致，Arend 拒绝所有无限递归的程序，所以上面这个 empty 函数就有个错误
+   看到「拒绝所有无限递归的程序」请不要误会，并没有人真的能解决停机问题
+   实际上为了保证达成这个效果，Arend 也会拒绝一些通过分析能发现会停机的程序
+   那种情况下就需要加一个在递归过程中严格减小的参数辅助 Arend 进行停机检查 -}
+
+-- 构造器是可以有参数的
+\data N           -- 一个自然数
+  | z             -- 要么是 0
+  | n+1 (n : N)   -- 要么比另一个自然数 n 大一
+  -- 这里也可以简写成 | n+1 N
+
+\func n_0 => z        -- 0
+\func n_1 => n+1 n_0  -- 1
+\func n_2 => n+1 n_1  -- 2
+\func n_2' => n+1 (n+1 z) -- 也是 2
+
+{- 自然数的定义来自皮亚诺公理的归纳构造
+   实际上说得通俗点一个自然数就是以 0 为基础，外面套几层 n+1 就是几
+   而平时输入的字面量数字的类型是 Prelude 里的 Nat
+   被定义为 \data Nat | zero | suc Nat
+   具体细节可以按住 Ctrl 的同时鼠标左键点击下面的 Nat 打开 Prelude.ard 看看 -}
+\func nat_1 : Nat => suc zero
+
+-- 带参数的构造器像下面这样匹配
+\func add (a b : N) : N \elim a
+  | z => b
+  | n+1 x => n+1 (add x b)
+
+-- 数据类型也是可以有参数的
+\data List (A : \Type)  -- 一个存储类型 A 对象的链表
+  | nil                 -- 要么是空链表
+  | cons A (List A)     -- 要么是另一个链表的基础上附加上一个 A 类型的对象
+  -- 注意这个 cons 是有两个参数的 | cons (x : A) (xs : List A)
+
+\func list =>
+  cons {Nat} 0     -- 手动标注类型参数
+      (cons 1 nil) -- 自动推断
+
+-- 练习：连接两个链表（
+\func \infixr 5 ++ {A : \Type} (a b : List A) : List A => {?}
+
+-- 数据类型的参数也是可以使用 \with 和 \elim 匹配的（不过这里的 \with 不能省略
+\data FinSet (n : Nat) \with
+  | suc x => {
+    | fzero
+    | fsuc (FinSet x)
+  }
+{- 首先，注意到并没有匹配 n 为 zero 的情况，这意味着 FinSet 0 并没有任何构造器
+   换句话说 FinSet 0 和 Empty 是等价的，FinSet 0 没有任何对象
+   再看看 FinSet 1 会发现它有两个构造器 fzero 和 fsuc (FinSet 0)
+   其中 fsuc (FinSet 0) 能构造的对象数量和 FinSet 0 是相同的（对于每一个 x : FinSet 0 都能构造一个 fsuc x
+   再加上 fzero 部分能构造出一个对象，就可以发现 FinSet 1 的不同对象数量比 FinSet 0 正好多一，具体来说只能构造一个
+   发现规律的你会注意到 FinSet (suc n) 比 FinSet n 能构造的不同对象数量多一
+   加上 FinSet 0 能构造 0 个对象这个初始条件，可以归纳出 FinSet n 能构造出 n 个不同的对象
+   这也就是这个数据类型的意义，FinSet n 可以从 0 数到 n - 1 一共 n 个数
+   FinSet 全称 Final Set 也叫有限集
+   具体怎么数呢？这里给一个比较简单的数法：fzero 表示 0，fsuc 表示加一 -}
+\func finToNat {n : Nat} (x : FinSet n) : Nat \elim n, x
+  | zero, ()
+  | suc n, fzero => zero
+  | suc n, fsuc x => finToNat {n} x
+
+-- 存在一类常见的需求，把上面的 finToNat 的参数 n 和 x 打包到同一个参数中，在其他语言里通常作为元组出现
+\func finPack {n : Nat} (x : FinSet n) : \Sigma (a : Nat) (FinSet a) => (n, x)
+{- \Sigma 关键字构造一个元组类型，而像是其他语言其对象由逗号分隔括号包围的形式构造
+   注意 \Sigma 最特别的一点，和 \Pi 类似
+   当元组中出现在前面的元素被后面出现的元素的类型所需要引用的时候可以像函数标注那样给元素命名 -}
+
+-- 练习：举一个合适的例子
+\func pointed : \Sigma (A : \Type) A => {?}
+
+{- 最后介绍一点作用域管理内容 -}
+
+-- 导入 Arith.Nat 包中的 pred 函数（一个文件对应一个包
+\import Arith.Nat (pred) -- 删去 (pred) 即可导入包内所有内容
+
+\data Maybe (A : \Type) | none | some A
+  \where { -- 引入一个子作用域（ \where 可以用在 \data, \func 之类结构的后面
+    \func map {A B : \Type} (f : A -> B) (ma : Maybe A) : Maybe B \elim ma
+      | none => none
+      | some a => \let -- 使用 \let .. \in 引入中间量
+        | b => f a
+        \in some b -- 等价于 some (f a)
+  }
+
+-- 引用 \where 作用域以内的内容
+\func mmap => Maybe.map
+
+-- 使用 \open 导入 Maybe 中的 \where 作用域中的 map
+\open Maybe (map) -- 删去 (map) 即可导入全部内容
+\func mpred => map pred
+
+-- 而 \module .. \where 则简单引入一个 \where 作用域
+\module module \where {}

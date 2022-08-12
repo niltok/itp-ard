@@ -1,0 +1,38 @@
+\import itp00_basic_arend
+
+-- 小练习：标注 fa' 的类型
+\func fa' : Nat -> Nat -> (Nat -> Nat) -> Nat => fa
+
+-- 函数应用练习：
+\func function-apply-exercise
+  (A B C D E F G H I J K L : \Type)
+  (f : A -> B)
+  (g : A -> C)
+  (h : C -> B)
+  (i : B -> F)
+  (j : G -> H)
+  (k : F -> K)
+  (l : J -> I)
+  (m : K -> L)
+  (n : E -> L)
+  (a : A) : L => m (k (i (f a)))
+
+-- 小练习：为 id 标注类型
+\func id'' : \Pi {A : \Type} (_ : A) -> A => id
+
+-- 模式匹配练习：
+\func \infixl 2 or (x y : Bool) : Bool
+  | false, false => false
+  | _, _ => true
+
+\func if {R : \Type} (b : Bool) (x y : R) : R \elim b
+  | true => x
+  | false => y
+
+-- 练习：连接两个链表
+\func \infixr 5 ++ {A : \Type} (a b : List A) : List A \elim a
+  | nil => b
+  | cons x xs => cons x (xs ++ b)
+
+-- 练习：举一个合适的例子
+\func pointed : \Sigma (A : \Type) A => (Nat, 0)
