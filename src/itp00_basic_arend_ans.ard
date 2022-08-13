@@ -29,6 +29,12 @@
   | true => x
   | false => y
 
+-- 练习：整数比较大小
+\func \infix 4 < (n m : Nat) : Bool
+  | _, zero => false
+  | zero, suc _ => true
+  | suc n, suc m => n < m
+
 -- 练习：连接两个链表
 \func \infixr 5 ++ {A : \Type} (a b : List A) : List A \elim a
   | nil => b
