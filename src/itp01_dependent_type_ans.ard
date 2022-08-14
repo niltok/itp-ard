@@ -1,0 +1,139 @@
+\import Algebra.Ring
+\import itp00_basic_arend \hiding (<)
+\import itp00_basic_arend_ans (<)
+\import itp01_dependent_type
+
+-- 练习：依值类型的 if
+\func ifp {P : Bool -> \Type} (b : Bool) (x : P true) (y : P false) : P b \elim b
+  | true => x
+  | false => y
+
+-- 练习：把 Nat 转换为 FinSet
+\func natToFin (n : Nat) : FinSet (suc n)
+  | zero => fzero
+  | suc n => fsuc (natToFin n)
+
+-- 练习：如果 a : FinSet n 则 a : FinSet (suc n)
+\func flift1 {n : Nat} (a : FinSet n) : FinSet (suc n)
+  | {zero}, ()
+  | {suc n}, fzero => fzero {suc n}
+  | {suc n}, fsuc a => fsuc (flift1 {n} a)
+
+\open Nat(+)
+
+-- 练习：如果 a : FinSet m 那么 a : FinSet (n + m)
+\func flift {n m : Nat} (a : FinSet m) : FinSet (n + m) \elim n
+  | zero => a
+  | suc n => flift1 {n + m} (flift {n} {m} a)
+
+-- 练习：上面那个函数的另一个版本
+\func flift' {n m : Nat} (a : FinSet n) : FinSet (n + m) \elim n, a
+  | zero, ()
+  | suc n, fzero => fzero {n + m}
+  | suc n, fsuc a => fsuc (flift' {n} {m} a)
+
+-- 练习：两有限集数相加
+\func fadd {n m : Nat} (a : FinSet n) (b : FinSet m) : FinSet (n + m) \elim n, a
+  | zero, ()
+  | suc n, fzero => fsuc (flift {n} {m} b)
+  | suc n, fsuc a => fsuc (fadd {n} {m} a b)
+
+-- 练习：当 a : FinSet n 时计算 n - 1 - a
+-- 省略了 | {zero}, () 分支（注意只有 () 的情况能省略，如果是 fsuc () 之类的嵌套情况不能省略
+\func finv {n : Nat} (a : FinSet n) : FinSet n
+  | {suc n}, fzero => natToFin n
+  | {suc n}, fsuc a => flift1 (finv a)
+
+-- 练习：写出 FinSet' 的构造和解构函数
+\func fzero' {n : Nat} : FinSet' (suc n) => (0, unit)
+
+\func fsuc' {n : Nat} (a : FinSet' n) : FinSet' (suc n) \elim n, a
+  | zero, (zero, ())  -- 嵌套情况无法省略
+  | zero, (suc _, ())
+  | suc n, (x, p) => (suc x, p)
+{- suc n < suc m 会通过 < 的计算规则变换成 n < m
+   第二个出现 p 的位置实际所需填入的类型为 T (suc x < suc (suc n))（注意外面的 n 在 \elim 作用下替换成了 suc n
+   通过计算变成 T (x < suc n) 而恰巧 p : T (x < suc n) 所以填入 p 即可 -}
+
+-- 练习：写出 FinSet 和 FinSet' 之间的互相转换函数
+\func fin=>fin' {n : Nat} (a : FinSet n) : FinSet' n \elim n, a
+  | zero, ()
+  | suc n, fzero => fzero'
+  | suc n, fsuc a => fsuc' (fin=>fin' a)
+
+\func fin'=>fin {n : Nat} (a : FinSet' n) : FinSet n \elim n, a
+  | zero, (zero, ())
+  | zero, (suc _, ())
+  | suc n, (zero, _) => fzero
+  | suc n, (suc a, p) => fsuc (fin'=>fin (a, p))
+
+-- 练习：a < b 且 b < c 则 a < c 对于两种 < 的证明
+\func <T-trans {a b c : Nat} (ab : T (a < b)) (bc : T (b < c)) : T (a < c) \elim a, b, c
+  | zero, suc _, suc _ => unit
+  | suc a, suc b, suc c => <T-trans {a} {b} {c} ab bc
+
+\func <'-trans {a b c : Nat} (ab : a <' b) (bc : b <' c) : a <' c \elim a, b, c, ab, bc
+  | zero, suc _, suc _, _, _ => <'-zero
+  | suc _, suc _, suc _, <'-suc ab, <'-suc bc => <'-suc (<'-trans ab bc)
+
+-- 练习：T (a < b) 与 a <' b 之间可以互相转化
+\func <T=><' {a b : Nat} (p : T (a < b)) : a <' b \elim a, b
+  | zero, suc _ => <'-zero
+  | suc a, suc b => <'-suc (<T=><' {a} {b} p)
+
+\func <'=><T {a b : Nat} (p : a <' b) : T (a < b) \elim a, b, p
+  | zero, suc _, <'-zero => unit
+  | suc _, suc _, <'-suc p => <'=><T p
+
+-- 练习：获取 Vec 中某一位的值
+\func vget {A : \Type} {n : Nat} (v : Vec A n) (i : FinSet n) : A \elim n, v, i
+  | suc _, vcons x _, fzero => x
+  | suc _, vcons _ xs, fsuc i => vget xs i
+
+-- 练习：连接两个 Vec
+\func \infixr 5 v++ {A : \Type} {n m : Nat} (a : Vec A n) (b : Vec A m) : Vec A (n + m) \elim n, a
+  | zero, vnil => b
+  | suc _, vcons x xs => vcons x (xs v++ b)
+
+-- 练习：通过 FinSet n -> A 构造 Vec A n
+\func createVec {A : \Type} {n : Nat} (f : FinSet n -> A) : Vec A n \elim n
+  | zero => vnil
+  | suc n => vcons (f (natToFin n)) (createVec (\lam i => f (flift1 i)))
+
+-- 练习：翻转一个向量
+\func reverse {A : \Type} {n : Nat} (v : Vec A n) : Vec A n =>
+  createVec (\lam i => vget v (finv i))
+
+\func reverse' {A : \Type} {n : Nat} (v : Vec A n) : Vec A n \elim n, v
+  | zero, vnil => vnil
+  | suc _, vcons x xs => reverse' xs v++ vcons x vnil
+
+\func reverse'' {A : \Type} {n : Nat} (v : Vec A n) : Vec A n => rev v vnil
+  \where {
+    \func rev {A : \Type} {n m : Nat} (v : Vec A n) (w : Vec A m) : Vec A (n + m) \elim n, v
+      | zero, vnil => w
+      | suc _, vcons x xs => rev xs (vcons x w)
+  }
+
+-- 练习：获取矩阵中某个位置的值
+\func mget {A : \Type} {n m : Nat} (ma : Matrix A n m) (i : FinSet n) (j : FinSet m) : A =>
+  vget (vget ma i) j
+
+-- 练习：通过 FinSet n -> FinSet m -> A 构造 Matrix A n m
+\func createMatrix {A : \Type} {n m : Nat} (f : FinSet n -> FinSet m -> A) : Matrix A n m =>
+  createVec (\lam i => createVec (\lam j => f i j))
+
+-- 练习：矩阵的置转
+-- (i, j) ==> (j, i)
+\func transpose {A : \Type} {n : Nat} (ma : Matrix A n n) : Matrix A n n =>
+  createMatrix (\lam i j => mget ma j i)
+
+-- 练习：矩阵乘法
+\func \infixl 7 m* {A : Ring} {n m o : Nat} (ma : Matrix A n m) (mb : Matrix A m o) : Matrix A n o =>
+  createMatrix (\lam i j => sum (\lam k => mget ma i k A.* mget mb k j))
+  \where {
+    \func sum {A : Ring} {n : Nat} (f : FinSet n -> A) : A \elim n
+      | zero => A.zro
+      | suc n => sum (\lam i => f (flift1 i)) A.+ f (natToFin n)
+  }
+

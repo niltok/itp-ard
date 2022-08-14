@@ -1,0 +1,128 @@
+-- ITP01: 依值类型
+
+\import Algebra.Ring
+\import itp00_basic_arend \hiding (<)
+\import itp00_basic_arend_ans (<)
+
+{- 聪明的你肯定注意到了上一章的 FinSet 的特别之处，\data 构造类型的时候用了 Nat 的一个对象作为参数
+   如果仔细考虑 FinSet 的类型，就会发现它是 Nat -> \Type，构造类型依赖值作为参数的类型就叫依值类型
+   实际上 \func 也可以构造类似这样类型的函数，比如： -}
+\func T (x : Bool) : \Type
+  | true => Unit
+  | false => Empty
+{- 对于 x : Bool 来说 T x 是一个类型，而且具体是什么类型还和 x 的值有关
+   如果想把 T x 当成 if x 的返回值类型呢？似乎需要修改一下 if 的定义了：-}
+
+-- 练习：依值类型的 if
+\func ifp {P : Bool -> \Type} (b : Bool) (x : P true) (y : P false) : P b => {?}
+{- 注意一件有趣的事情，在这个练习最原始的状态函数体里我写了个 {?} 占位
+   如果把鼠标移动到这个 {?} 上会弹出一个悬浮窗显示这是一个 Goal，并且期望填入一个类型为 P b 的对象
+   然后为了写出这个函数的实现，把函数体改成模式匹配形式时（如下面的 ifp' 所示
+   再把鼠标移动到 true 分支的 {?} 上，弹出的窗就会提示期望填入的类型变成了 P true，并且 Context 中的参数 b 消失了
+   而 Context 中恰好有 x : P true 所以在 true 分支填入 x 就可以了， false 分支同理 -}
+\func ifp' {P : Bool -> \Type} (b : Bool) (x : P true) (y : P false) : P b \elim b
+  | true => {?}
+  | false => {?}
+{- 这也就是 \elim 在依值类型的使用中非常重要的作用，它可以在匹配一个参数的时候把所有出现该参数的地方替换成匹配值
+   这样对于形如 P a : \Type 的类型（这被成为 Type Family 或者类型族）可以对 a 进行匹配
+   然后通过 P 的计算性质分别讨论 a 的不同匹配分支 P a 具体是什么类型，就可以把类型族转化为具体类型 -}
+
+-- 练习：把 Nat 转换为 FinSet（注意保证 n 和 finToNat (natToFin n) 相等
+\func natToFin (n : Nat) : FinSet (suc n) => {?}
+-- 建议这几个练习写完以后看看答案，这种函数在正确性证明在后面的章节才会介绍
+
+-- 练习：如果 a : FinSet n 则 a : FinSet (suc n)（注意要保证 finToNat a 和 finToNat (lift1 a) 相同
+\func flift1 {n : Nat} (a : FinSet n) : FinSet (suc n) => {?}
+
+\open Nat(+)
+
+-- 练习：如果 a : FinSet m 那么 a : FinSet (n + m)
+\func flift {n m : Nat} (a : FinSet m) : FinSet (n + m) => {?}
+
+-- 练习：上面那个函数的另一个版本
+\func flift' {n m : Nat} (a : FinSet n) : FinSet (n + m) => {?}
+
+-- 练习：两有限集数相加（大概会用到上面的 flift
+\func fadd {n m : Nat} (a : FinSet n) (b : FinSet m) : FinSet (n + m) => {?}
+
+-- 练习：当 a : FinSet n 时计算 n - 1 - a
+\func finv {n : Nat} (a : FinSet n) : FinSet n => {?}
+-- 提示：{suc n}, fzero 时答案就是 n
+
+{- 我们再说回上面的 T 函数，设想 \Sigma (x : Bool) (T x) 只当 x 为 true 时存在一个实例 (true, unit)
+   有点像是在 Bool 这个类型的空间里把 false 这个对象给「挖掉了」，只留下了 true 这个对象
+   如果通过一个断言函数 f : A -> Bool 把 A 映射到 Bool 上就可以把类型 A 中满足断言的对象筛选出来形成一个新的类型： -}
+\func Satisfy {A : \Type} (f : A -> Bool) : \Type => \Sigma (a : A) (T (f a))
+
+{- 回忆一下 FinSet n 的含义：小于 n 的整数集合
+   所以实际上也可以用 Satisfy 或者 T 来定义 FinSet -}
+\func FinSet' (n : Nat) : \Type => Satisfy (\lam x => x < n)
+                           -- 或者 \Sigma (x : Nat) (T (x < n))
+
+-- 练习：写出 FinSet' 的构造和解构函数（遇到困难可以多试试 {?} 或者看看参考答案的解释
+\func fzero' {n : Nat} : FinSet' (suc n) => {?}
+\func fsuc' {n : Nat} (a : FinSet' n) : FinSet' (suc n) => {?}
+
+-- 练习：写出 FinSet 和 FinSet' 之间的互相转换函数
+\func fin=>fin' {n : Nat} (a : FinSet n) : FinSet' n => {?}
+\func fin'=>fin {n : Nat} (a : FinSet' n) : FinSet n => {?}
+
+{- FinSet' 是按照有限集的含义从 Nat 上挖掉 大于等于 n 的数得到的，其定义非常简单易懂
+   而 FinSet 则是通过其构造性质定义的，从上面的例子可以感受出使用起来比 FinSet' 方便一些
+   那么注意到 FinSet' 定义中的 T (x < n) 显然是按照含义给出的定义，是否有等价的构造定义呢？ -}
+
+\data \infix 4 <' (n m : Nat) \with
+  | zero, suc _ => <'-zero
+  | suc n, suc m => <'-suc (n <' m)
+
+-- 练习：a < b 且 b < c 则 a < c
+\func <T-trans {a b c : Nat} (ab : T (a < b)) (bc : T (b < c)) : T (a < c) => {?}
+\func <'-trans {a b c : Nat} (ab : a <' b) (bc : b <' c) : a <' c => {?}
+
+-- 练习：T (a < b) 与 a <' b 之间可以互相转化
+\func <T=><' {a b : Nat} (p : T (a < b)) : a <' b => {?}
+\func <'=><T {a b : Nat} (p : a <' b) : T (a < b) => {?}
+
+-- 类型信息里带长度的数组（也叫向量
+\data Vec (A : \Type) (n : Nat) \elim n
+  | zero => vnil
+  | suc n => vcons A (Vec A n)
+
+-- 练习：获取 Vec 中某一位的值
+\func vget {A : \Type} {n : Nat} (v : Vec A n) (i : FinSet n) : A => {?}
+
+-- 练习：连接两个 Vec
+\func \infixr 5 v++ {A : \Type} {n m : Nat} (a : Vec A n) (b : Vec A m) : Vec A (n + m) => {?}
+
+-- 练习：通过 FinSet n -> A 构造 Vec A n
+\func createVec {A : \Type} {n : Nat} (f : FinSet n -> A) : Vec A n => {?}
+-- 提示：总共有 n 个元素，可以用隐式参数 n 来遍历所有的下标，而递归的时候用 \lam 构造新的 f 即可让 n 不断下降
+
+-- 练习：翻转一个向量
+\func reverse {A : \Type} {n : Nat} (v : Vec A n) : Vec A n => {?}
+{- 你会哪种写法？使用 createVec 的写法，使用 v++ 的写法，还是使用辅助函数的复杂度为 O(n) 的写法？
+   完成练习以后可以看看答案里面给出的不同写法 -}
+
+-- 通过向量可以进一步构造矩阵
+\func Matrix (A : \Type) (n m : Nat) => Vec (Vec A m) n
+
+-- 练习：获取矩阵中某个位置的值
+\func mget {A : \Type} {n m : Nat} (ma : Matrix A n m) (i : FinSet n) (j : FinSet m) : A => {?}
+
+-- 练习：通过 FinSet n -> FinSet m -> A 构造 Matrix A n m
+\func createMatrix {A : \Type} {n m : Nat} (f : FinSet n -> FinSet m -> A) : Matrix A n m => {?}
+
+-- 练习：矩阵的置转（也就是说沿着 (0, 0) - (n - 1, n - 1) 对角线翻转
+\func transpose {A : \Type} {n : Nat} (ma : Matrix A n n) : Matrix A n n => {?}
+
+-- 练习：矩阵乘法
+{- A : Ring 意味着可以使用 A.ide 当 1 用， A.zro 当 0 用
+   以及对于 x y : A 来说存在 x A.+ y 和 x A.* y 两个运算分别作为加法和乘法
+   具体这是怎么来的后文再介绍 -}
+\func \infixl 7 m* {A : Ring} {n m o : Nat} (ma : Matrix A n m) (mb : Matrix A m o) : Matrix A n o => {?}
+-- 提示：参考 createVec 的处理思路增加一个中间维度然后相乘求和
+
+{- 经过上面这个例子，我想你能一定程度上感受到依值类型在编程操作上所拥有的优势
+   比如通过有限制的 FinSet 来作为下标来访问 Matrix 一方面如果下标写错了会报错
+   另一方面因为有限制所以只要编译通过就一定不会出现运行时下标越界的情况
+   后续再配合正确性证明，将可以写出通过编译即正确的程序 -}
