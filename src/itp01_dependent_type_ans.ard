@@ -125,7 +125,7 @@
 
 -- 练习：矩阵的置转
 -- (i, j) ==> (j, i)
-\func transpose {A : \Type} {n : Nat} (ma : Matrix A n n) : Matrix A n n =>
+\func transpose {A : \Type} {n m : Nat} (ma : Matrix A n m) : Matrix A m n =>
   createMatrix (\lam i j => mget ma j i)
 
 -- 练习：矩阵乘法

@@ -112,8 +112,8 @@
 -- 练习：通过 FinSet n -> FinSet m -> A 构造 Matrix A n m
 \func createMatrix {A : \Type} {n m : Nat} (f : FinSet n -> FinSet m -> A) : Matrix A n m => {?}
 
--- 练习：矩阵的置转（也就是说沿着 (0, 0) - (n - 1, n - 1) 对角线翻转
-\func transpose {A : \Type} {n : Nat} (ma : Matrix A n n) : Matrix A n n => {?}
+-- 练习：矩阵的置转（也就是说沿着 (0, 0) - (1, 1) 轴翻转
+\func transpose {A : \Type} {n m : Nat} (ma : Matrix A n m) : Matrix A m n => {?}
 
 -- 练习：矩阵乘法
 {- A : Ring 意味着可以使用 A.ide 当 1 用， A.zro 当 0 用
