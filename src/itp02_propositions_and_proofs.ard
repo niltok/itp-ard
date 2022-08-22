@@ -1,0 +1,135 @@
+\import itp00_basic_arend
+\import itp01_dependent_type
+-- ITP02: 命题与证明
+
+-- 先来补充两个概念
+
+\func test {A : \Type} (a : A) {B : A -> \Type} (b : B a) {C : A -> B a -> \Type} (c : C a b)
+  => {?} -- \lam {D : A -> B a -> C a b -> \Type} (d : D a b c) => {?}
+{- 显式参数组成形如 (a : A) (b : B a) (c : C a b) 的样子，每个参数依赖前面的参数
+   这种一层一层构造的结构被成为 Telescope
+   把光标移动到上面的 {?} 上会显示当前的上下文(Context)，它包含了现在所有引入的参数
+   如果把上面的 {?} 删掉并把后面的代码取消注释则新的 {?} 就会多出由 \lam 新引入的参数-}
+
+{- 前面一章通过在一个类型的基础上「挖掉」一部分来解释 \Sigma (x : A) (T (f x))
+   如果拆开来看它，又有另一层意思
+   设想现在的上下文中有 (A : \Type) (x : A) (f : A -> Bool) 如果此时在上下文中再引入 p : T (f x)
+   注意如果 f x 计算得到 false 则 p 无法被构造，并没有办法真的传进这个参数
+   实际上这种情况下我们只需要用 () 把 Empty 匹配掉就行了，并不用真的把 p 引入上下文
+   所以上下文中存在 p : T (f x) 就意味着 T (f x) 存在对象 p
+   换个说法就是命题「T (f x) 存在对象」与命题「f x 为真」是等价的
+   所以我们可以用一个类型来表示其存在对象的条件所代表的命题，类型的对象表示该命题的证明
+   比如如果存在 p : T (n < m) 那么就说明在这个上下文中 n 一定比 m 小
+   同样的，如果存在 p : n <' m 也能说明 n 比 m 小
+   进一部讲 p : Empty 就意味着 p 永远不会存在，所以 Empty 可以用来代表假命题
+   而与之相对的 p : Unit 可知 p 必定为 unit ，所以 Unit 可以用来代表真命题
+   至于函数 \func q (p : P) : Q => {?} 则可以表示在调用上下文中有 p : P 的情况下
+   我们能在调用上下文中得到 q p : Q 换句话说 q p 就算是对于在调用上下文中能推出 Q 所代表的命题的证明 -}
+
+-- 可以使用 -> 来表示逻辑蕴含
+\func Imply (P Q : \Type) : \Type => P -> Q
+-- 蕴含的消去规则：如果命题 P 成立且 P 蕴含 Q 则能推出 Q
+\func elim-Imply {P Q : \Type} (p : P) (f : P `Imply` Q) : Q => f p
+-- 语言特性：用反引号`引用的函数当作中缀运算符调用
+{- 所以其实一个函数就是一个关于蕴含的命题的证明
+   我们构造了一个对象 f : P -> Q 它在上下文中有 p : P 的证明时得到 f p : Q -}
+
+-- 练习：证明希尔伯特系统的两个蕴含公理
+\func H1 {A B : \Type} : A -> (B -> A) => {?}
+\func H2 {A B C : \Type} : (A -> (B -> C)) -> ((A -> B) -> (A -> C)) => {?}
+{- 「证明公理」听上去挺奇怪，但注意我们所使用的并不是希尔伯特系统，实际上是在一个系统里证明另一个系统的公理
+   而在使用的这个系统里证明希尔伯特系统的公理实际上意味着我们在证明这两个系统之间存在的同构性质 -}
+
+-- 考虑 P -> Q 中 P 或者 Q 为 Empty 的情况
+\func Empty->Q {Q : \Type} : Empty -> Q => absurd
+\func P->Empty {P : \Type} : P -> Empty => {?}
+\func id-Empty : Empty -> Empty => id
+{- P -> Empty 是无法被证明的，这和「任意命题蕴含假命题」是假命题保持一致
+   其余两种情况这里给出了证明，也和蕴含的性质一致 -}
+
+-- 否定命题
+\func Not (P : \Type) => P -> Empty
+{- 如果对逻辑不是很熟悉可以这样考虑：
+   如果 P 是真命题，则如同上面的 P->Empty 函数所示 Not P 无法被证明，Not P 是个假命题
+   如果 P 是假命题（P 是 Empty），则上面的 id-Empty 给出了 Not Empty 的证明，Not P 是个真命题
+   所以 P -> Empty 符合否定命题的性质
+   注意这里不是否命题，P -> Q 的否命题是 Not P -> Not Q
+   而 P -> Q 的否定命题是 Not (P -> Q) -}
+
+-- 练习：证明原命题蕴含其双重否定
+\func intro-Not {P : \Type} : P -> Not (Not P) => {?}
+-- 提示：考虑其等价定义 intro-Nat' {P : \Type} (p : P) (f : P -> Empty) : Empty
+
+-- 练习：原命题蕴含其逆否命题
+\func intro-Contrapos {P Q : \Type} : (P -> Q) -> (Not Q -> Not P) => {?}
+
+-- 与命题
+\func \infixr 3 && (P Q : \Type) => \Sigma P Q
+-- 需要同时提供 P 与 Q 成立的证据
+
+-- 练习：
+\func &&=>-> {P Q R : \Type} : ((P && Q) -> R) -> (P -> Q -> R) => {?}
+\func ->=>&& {P Q R : \Type} : (P -> Q -> R) -> ((P && Q) -> R) => {?}
+
+-- P 当且仅当 Q 则意味着 P 蕴含 Q 且 Q 蕴含 P
+\func \infix 0 <-> (P Q : \Type) => \Sigma (P -> Q) (Q -> P)
+
+-- 于是上面的 && 与 -> 的练习就可以用 <-> 表示
+\func &&<->-> {P Q R : \Type} : ((P && Q) -> R) <-> (P -> Q -> R) => (&&=>->, ->=>&&)
+
+-- 或命题
+\data \infixr 2 || (P Q : \Type)
+  | inl P
+  | inr Q
+-- 只需要提供 P 或者 Q 其中一个成立的证据
+
+-- 练习：
+\func |&<-> {P Q : \Type} : ((P || Q) -> (P && Q)) -> (P <-> Q) => {?}
+
+-- 全称量词成立需要对于所有 a : A 都有 P a 成立所以需要一个函数来应对所有情况
+\func Forall {A : \Type} (P : A -> \Type) => \Pi (a : A) -> P a
+-- 存在量词成立只需要有一个 a : A 使 P a 成立，只需要给出一个 a 的例子和对应的 P a 证明即可
+\func Exists {A : \Type} (P : A -> \Type) => \Sigma (a : A) (P a)
+
+-- 练习：
+\func n<sn : Forall (\lam (x : Nat) => x <' suc x) => {?}
+\func en<sm : Exists (\lam (n : Nat) => Forall (\lam (m : Nat) => n <' suc m)) => {?}
+\func et : Exists T => {?}
+
+-- 有趣的是实际上 && 是 Forall 的特殊情况，|| 是 Exists 的特殊情况
+\func And (P Q : \Type) => Forall (\lam (b : Bool) => if b P Q)
+\func Or (P Q : \Type) => Exists (\lam (b : Bool) => if b P Q)
+
+-- 练习：
+\func &&<->And {P Q : \Type} : (P && Q) <-> (P `And` Q) => {?}
+\func ||<->Or {P Q : \Type} : (P || Q) <-> (P `Or` Q) => {?}
+
+-- 并且蕴含就是非依赖版本的全称量词
+\func Imply' (P Q : \Type) => Forall (\lam (_ : P) => Q)
+
+-- 至此，我们已经可以在 Arend 中表达逻辑命题并构造证明了
+
+{- 这里指出一点，演算系统中所有对象的意义都是人赋予的，只是为了方便人的理解而赋予解释
+   只要是满足定义的性质就可以被赋予相应的意义
+   比如 List Unit 和 Nat 结构相同，实际上我们也可以这样定义自然数：-}
+\func Nat' => List Unit
+\func Nat'=>Nat (x : Nat') : Nat
+  | nil => zero
+  | cons unit xs => suc (Nat'=>Nat xs)
+\func Nat=>Nat' (x : Nat) : Nat'
+  | zero => nil
+  | suc x => cons unit (Nat=>Nat' x)
+{- 所以只要性质满足，在编程语言的类型系统中表达逻辑命题和命题证明也是很可靠的 -}
+
+-- 甚至于我们可以进一步用归纳数据类型模拟集合论对象
+\data SetTheoryObject                                       -- 一个集合论对象
+  | empty                                                   -- 要么是空集
+  | some (head : SetTheoryObject) (tail : SetTheoryObject)  -- 要么由该集合的一个元素和该集合剩下的元素组成
+      -- 该集合的一个元素也是个集合论对象
+{- 换一个角度看，这个定义也可以用来表示一颗二叉树
+   empty 代表叶子，some left right 代表节点，反过来讲右子树组成的链构成一个集合，左子树代表集合中的元素
+   同理任意的一个归纳类型可以看作是一颗多叉树的定义
+   熟悉图论的话你会意识到任意的一颗多叉树可以变换成一颗二叉树
+   实际上任意的归纳数据类型对象都可以「拍平了」变成一个集合论对象
+   而反过来，如果有类型信息我们也可以从集合论对象重建归纳数据类型对象 -}
+

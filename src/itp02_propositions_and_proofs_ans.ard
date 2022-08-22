@@ -1,0 +1,43 @@
+\import itp00_basic_arend \hiding (empty, some)
+\import itp01_dependent_type
+\import itp02_propositions_and_proofs
+
+-- 练习：证明希尔伯特系统的两个蕴含公理
+\func H1 {A B : \Type} : A -> (B -> A) => \lam (a : A) (b : B) => a
+\func H2 {A B C : \Type} : (A -> (B -> C)) -> ((A -> B) -> (A -> C)) =>
+  \lam (abc : A -> B -> C) (ab : A -> B) (a : A) => abc a (ab a)
+
+-- 练习：证明原命题蕴含其双重否定
+\func intro-Not {P : \Type} : P -> Not (Not P) => \lam (p : P) (f : Not P) => f p
+
+-- 练习：原命题蕴含其逆否命题
+\func intro-Contrapos {P Q : \Type} : (P -> Q) -> (Not Q -> Not P) =>
+  \lam (pq : P -> Q) (nq : Q -> Empty) (p : P) => nq (pq p)
+
+-- 练习：
+\func &&=>-> {P Q R : \Type} : ((P && Q) -> R) -> (P -> Q -> R) =>
+  \lam (p&q->r : (P && Q) -> R) (p : P) (q : Q) => p&q->r (p, q)
+\func ->=>&& {P Q R : \Type} : (P -> Q -> R) -> ((P && Q) -> R) =>
+  \lam (pqr : P -> Q -> R) (p&q : P && Q) => pqr p&q.1 p&q.2
+
+-- 练习：
+\func |&<-> {P Q : \Type} : ((P || Q) -> (P && Q)) -> (P <-> Q) =>
+  \lam (f : (P || Q) -> (P && Q)) => (\lam (p : P) => (f (inl p)).2, \lam (q : Q) => (f (inr q)).1)
+
+-- 练习：
+\func n<sn : Forall (\lam (x : Nat) => x <' suc x) => n<sn'
+  \where\func n<sn' (x : Nat) : x <' suc x
+          | zero => <'-zero
+          | suc x => <'-suc (n<sn' x)
+\func en<sm : Exists (\lam (n : Nat) => Forall (\lam (m : Nat) => n <' suc m)) => (0, \lam _ => <'-zero)
+\func et : Exists T => (true, unit)
+
+
+-- 练习：
+\func &&<->And {P Q : \Type} : (P && Q) <-> (P `And` Q) =>
+  (\lam (pq : P && Q) (b : Bool) => ifp b pq.1 pq.2, \lam (pq : P `And` Q) => (pq true, pq false))
+\func ||<->Or {P Q : \Type} : (P || Q) <-> (P `Or` Q) =>
+  (||-helper, \lam (pq : P `Or` Q) => if pq.1 (inl pq.2) (inr pq.2))
+  \where\func ||-helper {P Q : \Type} (pq : P || Q) : P `Or` Q
+          | inl p => (true, p)
+          | inr q => (false, q)
