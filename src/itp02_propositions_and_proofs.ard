@@ -1,6 +1,7 @@
+-- ITP02: 命题与证明
+
 \import itp00_basic_arend
 \import itp01_dependent_type
--- ITP02: 命题与证明
 
 -- 先来补充两个概念
 
