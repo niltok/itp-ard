@@ -32,7 +32,6 @@
 \func en<sm : Exists (\lam (n : Nat) => Forall (\lam (m : Nat) => n <' suc m)) => (0, \lam _ => <'-zero)
 \func et : Exists T => (true, unit)
 
-
 -- 练习：
 \func &&<->And {P Q : \Type} : (P && Q) <-> (P `And` Q) =>
   (\lam (pq : P && Q) (b : Bool) => ifp b pq.1 pq.2, \lam (pq : P `And` Q) => (pq true, pq false))
