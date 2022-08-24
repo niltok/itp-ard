@@ -1,0 +1,133 @@
+-- ITP03: \case, \elim 以及归纳
+
+\import itp00_basic_arend
+\import itp01_dependent_type
+\import itp02_propositions_and_proofs \hiding (empty, some)
+
+{- 在写上一篇习题的时候你可能注意到了处理 || 时常需要模式匹配
+   每次定义一个新函数来辅助操作挺麻烦的，有没有什么不需要定义函数就能匹配对象的办法呢
+   类似其他语言，Arend 有个 \case 关键字可以用来模式匹配 -}
+\func ||->Or {P Q : \Type} : (P || Q) -> (P `Or` Q) =>
+  \lam (pq : P || Q) => \case pq \with {
+    | inl p => (true, p)
+    | inr q => (false, q)
+  }
+
+-- 练习：
+\func elim-|| {P Q R : \Type} : (P -> R) -> (Q -> R) -> P || Q -> R => {?}
+
+{- 不过呢，直接使用 \case 在处理依值类型的时候就会遇到麻烦
+   比如下面这个例子 -}
+\func n<sn : \Pi (x : Nat) -> x <' suc x =>
+  \lam (x : Nat) => \case x \with {
+    | zero => <'-zero
+    | suc n => {?}
+  }
+\func n<sn' (x : Nat) : x <' suc x \elim x
+  | zero => <'-zero
+  | suc x => {?}
+{- 可以看到同样是对 x 进行匹配的一段代码，使用 \case 就会报错
+   分别查看两个函数中的 {?} 就可以发现问题所在
+   \case 并不像 \elim 一样会把环境中所有被匹配项替换成匹配结果
+   所以 n<sn 的 {?} 中的 Expected type 依然是 x <' suc x 而没被替换成 suc x <' suc (suc x)
+   当然，这也是有解决办法的，\case 也能使用 \elim 关键字来解构对象 -}
+\func n<sn'' : \Pi (x : Nat) -> x <' suc x =>
+  \lam x => \case \elim x \with {
+    | zero => <'-zero
+    | suc n => {?}
+  }
+
+{- 除了 \elim 以外，\case 还有其他替代辅助函数的功能
+   比如对被匹配项重命名 -}
+\func t-f-not {A : \Type} (f : A -> Bool) (a : A) : T (f a) -> T (not (not (f a))) =>
+  \case f a \as b \return (T b -> T (not (not b))) \with {
+    | true => id
+    | false => id
+  }
+\func t-f-not' {A : \Type} (f : A -> Bool) (a : A) : T (f a) -> T (not (not (f a))) => helper (f a)
+  \where \func helper (b : Bool) : T b -> T (not (not b))
+    | true => id
+    | false => id
+{- 这里的 \return 显式指出了 \case 表达式的类型，\as 为 f a 起了个别名
+   而这里的 \as \return 起到了类似 \elim 的作用
+   利用重命名和显式声明表达式类型可以手动把类型中的 f a 替换成 b
+   然后在后续匹配 b 的时候把 b 替换成匹配项 -}
+
+-- 接下来的练习会用到的函数
+\func len {A : \Type} (l : List A) : Nat
+  | nil => zero
+  | cons _ xs => suc (len xs)
+\func filter {A : \Type} (f : A -> Bool) (l : List A) : List A \elim l
+  | nil => nil
+  | cons x xs => \let res => filter f xs \in if (f x) (cons x res) res
+\data \infix 4 <= (n m : Nat) \with
+  | zero, _ => <=-zero
+  | suc n, suc m => <=-suc (n <= m)
+\func <=-lift1 {n m : Nat} (p : n <= m) : n <= suc m \elim n, m, p
+  | zero, _, _ => <=-zero
+  | suc _, suc _, <=-suc p => <=-suc (<=-lift1 p)
+
+-- 练习：
+\func filter-lem {A : \Type} (f : A -> Bool) (l : List A) : len (filter f l) <= len l => {?}
+-- 提示：匹配以后如果不知道该怎么办可以尝试展开一下函数调用
+
+{- 如果你有心的话可能会注意到上面这题的 \case e \as b \return t 可以用 ifp {\lam b => t} e 来表示
+   而 \with 里的两个分支分别对应了 ifp 的两个分支
+   具体代码如下所示 -}
+
+\func filter-lem' {A : \Type} (f : A -> Bool) (l : List A) : len (filter f l) <= len l \elim l
+  | nil => <=-zero
+  | cons x xs =>
+    ifp {\lam fx => len (\let res => filter f xs \in if fx (cons x res) res) <= suc (len xs)}
+    (f x) (<=-suc (filter-lem f xs)) (<=-lift1 (filter-lem f xs))
+
+{- 这样对应来看实际上 ifp 能完美替换 \case 对 Bool 的匹配
+   那么问题来了，对于其他归纳数据类型也存在替代 \case 功能的函数么？ -}
+
+\func ind-Nat {P : Nat -> \Type}
+              (case-zero : P zero)
+              (case-suc : \Pi {x : Nat} -> P x -> P (suc x))
+              (n : Nat) : P n \elim n
+  | zero => case-zero
+  | suc n => case-suc (ind-Nat case-zero case-suc n)
+
+{- 把这个函数签名翻译成自然语言就是：
+   命题 P 0 成立且对于所有的整数 x 来说如果命题 P x 成立那么命题 P (x + 1) 成立
+   则对于所有的整数 x 来说命题 P x 成立
+   仔细想想这不就是数学归纳法嘛！
+   而且进一步来说，我们可以用类似的方法归纳所有归纳数据类型
+   这种在树型结构上的归纳法就叫结构归纳法
+   这也是「归纳数据结构」中「归纳」的含义 -}
+
+-- 练习：写出 Unit 的归纳函数（参数自己写）
+\func ind-Unit : {?} => {?}
+
+-- 练习：写出 SetTheoryObject 的归纳函数
+\func ind-SetTheoryObject : {?} => {?}
+-- 注：命名冲突的构造器可以通过 SetTheoryObject.empty 和 SetTheoryObject.some 访问
+
+-- 练习：写出 Maybe 的归纳函数
+\func ind-Maybe : {?} => {?}
+
+-- 练习：写出 Vec 的归纳函数
+\func ind-Vec : {?} => {?}
+-- 遇到困难可以看看答案以及解释（会写也可以去读读答案中的扩展内容）
+
+-- 练习：写出 Empty 的归纳函数
+\func ind-Empty : {?} => {?}
+-- 有没有觉得这个东西有点眼熟？这就是前文所说 absurd 合理的理由
+
+{- 除了数学归纳法，还有个叫完全归纳法的东西也就是说
+   对于所有的 n 来说如果所有比 n 小的数都能使 P 成立那么 P n 成立
+   则 P 对于所有自然数成立
+   也就是说这个东西在归纳节点的过程中是可以拿取到所有子树的归纳结果的
+   尝试在 Arend 中证明一下完全归纳法吧！ -}
+\func full-ind-Nat {P : Nat -> \Type}
+                   (r : \Pi (n : Nat) -> (\Pi (k : Nat) -> k <' n -> P k) -> P n)
+                   (n : Nat) : P n => {?}
+{- 提示：
+   如果碰到停机检查失败可以尝试增加一个单调减小的参数用来证明递归层数必定小于一个上界
+   引入一些合适的引理会对证明有一定帮助
+   （在之前的证明中我基本会把需要用到的引理当成小练习放在前面提前证好
+     而真实的证明中需要自己设计合适的引理来辅助证明）
+   证明比较复杂但没有很难（难点主要是证明停机的思路），做不出来建议先多想想再看答案 -}

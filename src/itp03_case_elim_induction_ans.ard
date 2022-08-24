@@ -1,0 +1,90 @@
+\import itp00_basic_arend
+\import itp01_dependent_type
+\import itp02_propositions_and_proofs \hiding (empty, some)
+\import itp03_case_elim_induction \hiding (n<sn)
+
+-- 练习：
+\func elim-|| {P Q R : \Type} : (P -> R) -> (Q -> R) -> P || Q -> R =>
+  \lam (pr : P -> R) (qr : Q -> R) (pq : P || Q) => \case pq \with {
+    | inl p => pr p
+    | inr q => qr q
+  }
+
+-- 练习：
+\func filter-lem {A : \Type} (f : A -> Bool) (l : List A) : len (filter f l) <= len l \elim l
+  | nil => <=-zero
+  | cons x xs => \case f x \as fx -- 用 cons x xs 替换 l 然后展开函数调用，再用 fx 替换 f x
+      \return len (\let res => filter f xs \in if fx (cons x res) res) <= suc (len xs) \with {
+    | true => <=-suc (filter-lem f xs)
+    | false => <=-lift1 (filter-lem f xs)
+  }
+
+-- 练习：写出 Unit 的归纳函数（参数自己写）
+\func ind-Unit {P : Unit -> \Type} (case-unit : P unit) (u : Unit) : P u \elim u
+  | unit => case-unit
+
+-- 练习：写出 SetTheoryObject 的归纳函数
+\func ind-SetTheoryObject {P : SetTheoryObject -> \Type}
+                          (case-empty : P SetTheoryObject.empty)
+                          (case-some : \Pi {head tail : SetTheoryObject} -> -- 树形结构需要让两个子树对 P 都成立
+                              P head -> P tail -> P (SetTheoryObject.some head tail))
+                          (s : SetTheoryObject) : P s \elim s
+  | SetTheoryObject.empty => case-empty
+  | SetTheoryObject.some head tail => case-some
+      (ind-SetTheoryObject case-empty case-some head)
+      (ind-SetTheoryObject case-empty case-some tail)
+
+-- 练习：写出 Maybe 的归纳函数
+\func ind-Maybe {A : \Type} {P : Maybe A -> \Type}
+                (case-none : P none)
+                (case-some : \Pi (a : A) -> P (some a)) -- 非 Maybe 参数并不需要归纳（不是该类型的结构树的一部分）
+                (m : Maybe A) : P m \elim m
+  | none => case-none
+  | some a => case-some a
+
+-- 练习：写出 Vec 的归纳函数
+\func ind-Vec {A : \Type} {n : Nat} {P : \Pi {n : Nat} -> Vec A n -> \Type}
+              (case-vnil : P vnil)
+              (case-vcons : \Pi {n : Nat} (x : A) {xs : Vec A n} -> P xs -> P (vcons x xs))
+              (v : Vec A n) : P v \elim n, v
+  | zero, vnil => case-vnil
+  | suc _, vcons x xs => case-vcons x (ind-Vec case-vnil case-vcons xs)
+{- 注意 ind-Maybe 与 ind-Vec 的区别，类型参数 A 实际上也可以当成 P 的一个参数
+   但是它并没有被匹配所以在各处都是一样的，所以可以被提取到外面来
+   而参数 n 在类型中被匹配过所以具体构造器形式依赖 n 的具体情况，就比如 vnil : Vec A 0
+   为了能给出所有构造器的归纳分支就必须让 P 对 n 「泛化」使其能应对依赖 n 具体值的构造器
+   而且在使用归纳函数的时候如果目标命题依赖环境中的其他变量也可以如法炮制对其泛化处理
+   比如如果有 t : Nat 我们想对于 Vec A n 来说 t <= n （一个非常无厘头的例子，看看就好）
+   就可以令 P 为 \lam {n} v => \Pi (x : Nat) -> x <= n 而不是 \lam {n} v => t <= n
+   之后在编写 case-vcons 分支时再 \elim t 的时候就不会影响已经给出的 P xs 的类型
+   （如果你玩过 Natural Number Game 或者写过 Lean 之类的语言
+     大概就会想起来里面的 induction .. generalizing .. 这个 tactic）-}
+
+-- 练习：写出 Empty 的归纳函数
+\func ind-Empty {P : Empty -> \Type} (e : Empty) : P e \elim e
+  | ()
+
+\func full-ind-Nat {P : Nat -> \Type}
+                   (r : \Pi (n : Nat) -> (\Pi (k : Nat) -> k <' n -> P k) -> P n)
+                   (n : Nat) : P n => helper r n n n<=n
+  \where {
+    \func helper {P : Nat -> \Type}
+                 (r : \Pi (n : Nat) -> (\Pi (k : Nat) -> k <' n -> P k) -> P n)
+                 (n : Nat) (l : Nat) (p : n <= l) : P n \elim n, l, p
+      | zero, _, _ => r 0 (\lam k p => \case \elim k, \elim p \with {}) -- k <' 0 is Empty
+      | suc n, suc l, p => r (suc n) (\lam k q => \case \elim p \with { | <=-suc p =>
+        helper r k l (<=-trans (<'=><= q) p) -- q : k <' suc n, p : n <= l
+      })
+    \func n<=n {n : Nat} : n <= n
+      | {zero} => <=-zero
+      | {suc _} => <=-suc n<=n
+    \func <=-trans {a b c : Nat} (p : a <= b) (q : b <= c) : a <= c
+      | {zero}, {_}, {_}, _, _ => <=-zero
+      | {suc _}, {suc _}, {suc _}, <=-suc p, <=-suc q => <=-suc (<=-trans p q)
+    \func <'=><= {n m : Nat} (p : n <' suc m) : n <= m
+      | {zero}, {_}, _ => <=-zero
+      | {suc n}, {zero}, <'-suc ()
+      | {suc _}, {suc _}, <'-suc p => <=-suc (<'=><= p)
+  }
+
+
