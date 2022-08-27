@@ -239,13 +239,13 @@
 -- 导入 Arith.Nat 包中的 pred 函数（一个文件对应一个包
 \import Arith.Nat (pred) -- 删去 (pred) 即可导入包内所有内容
 
-\data Maybe (A : \Type) | none | some A
+\data Maybe (A : \Type) | none | just A
   \where { -- 引入一个子作用域（ \where 可以用在 \data, \func 之类结构的后面
     \func map {A B : \Type} (f : A -> B) (ma : Maybe A) : Maybe B \elim ma
       | none => none
-      | some a => \let -- 使用 \let .. \in 引入中间量
+      | just a =>\let -- 使用 \let .. \in 引入中间量
         | b => f a
-        \in some b -- 等价于 some (f a)
+        \in just b -- 等价于 some (f a)
   }
 
 -- 引用 \where 作用域以内的内容

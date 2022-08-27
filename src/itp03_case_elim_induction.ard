@@ -2,7 +2,7 @@
 
 \import itp00_basic_arend
 \import itp01_dependent_type
-\import itp02_propositions_and_proofs \hiding (empty, some)
+\import itp02_propositions_and_proofs \hiding (empty)
 
 {- 在写上一篇习题的时候你可能注意到了处理 || 时常需要模式匹配
    每次定义一个新函数来辅助操作挺麻烦的，有没有什么不需要定义函数就能匹配对象的办法呢

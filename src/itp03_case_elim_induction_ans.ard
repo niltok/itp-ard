@@ -1,6 +1,6 @@
 \import itp00_basic_arend
 \import itp01_dependent_type
-\import itp02_propositions_and_proofs \hiding (empty, some)
+\import itp02_propositions_and_proofs \hiding (empty)
 \import itp03_case_elim_induction \hiding (n<sn)
 
 -- 练习：
@@ -37,10 +37,10 @@
 -- 练习：写出 Maybe 的归纳函数
 \func ind-Maybe {A : \Type} {P : Maybe A -> \Type}
                 (case-none : P none)
-                (case-some : \Pi (a : A) -> P (some a)) -- 非 Maybe 参数并不需要归纳（不是该类型的结构树的一部分）
+                (case-just : \Pi (a : A) -> P (just a)) -- 非 Maybe 参数并不需要归纳（不是该类型的结构树的一部分）
                 (m : Maybe A) : P m \elim m
   | none => case-none
-  | some a => case-some a
+  | just a => case-just a
 
 -- 练习：写出 Vec 的归纳函数
 \func ind-Vec {A : \Type} {n : Nat} {P : \Pi {n : Nat} -> Vec A n -> \Type}

@@ -1,6 +1,6 @@
-\import itp00_basic_arend \hiding (empty, some)
+\import itp00_basic_arend
 \import itp01_dependent_type
-\import itp02_propositions_and_proofs
+\import itp02_propositions_and_proofs \hiding (empty)
 
 -- 练习：证明希尔伯特系统的两个蕴含公理
 \func H1 {A B : \Type} : A -> (B -> A) => \lam (a : A) (b : B) => a
