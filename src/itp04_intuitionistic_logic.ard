@@ -1,0 +1,189 @@
+-- ITP04: 直觉主义逻辑
+
+\import itp00_basic_arend
+\import itp02_propositions_and_proofs \hiding (empty)
+
+{- 之前的章节中我们提到过如果有 p : P 则可以得出 Not (Not P)
+   不过不知道你有没有尝试过，这个函数反过来是无法被证明的： -}
+\func elim-Not' {P : \Type} (nnp : Not (Not P)) : P => {?}
+
+{- 而很显然，在经典逻辑中这是成立的
+   不过好消息是把这个函数的参数 P 取个 Not 就可以被证明了 -}
+\func elim-NotN {P : \Type} (nnnp : Not (Not (Not P))) : Not P =>
+  \lam p => nnnp (\lam f => f p)
+
+{- 大概你会觉得奇怪，众所周知根据排中律要么 P 成立要么 Not P 成立
+   为啥去掉 Not 就没法证明了呢？
+   实际上排中律是和 elim-Not' 等价的，既然 Arend 没法证双重否定的消去自然也没法证排中律 -}
+\func lem (P : \Type) : P || Not P => {?}
+
+{- 实际上经典逻辑三大基本定律中唯独排中律在 Arend 中不能被证明
+   同一律意味着我们使用的参数不可变，始终为其定义时的值
+   矛盾律意味着我们可以通过 p : P 与 np : Not P 得到本不该存在的 np p : Empty，所以 p 和 np 不会同时存在
+   而在经典逻辑的基础上去掉了排中律的逻辑系统就叫做直觉主义逻辑
+   不过我们还有个好消息，虽然 lem 不能被证明，但是它在 Arend 中「不是假命题」-}
+\func nnlem (P : \Type) : Not (Not (P || Not P)) =>
+  \lam (f : (P || Not P) -> Empty) => f (inr (\lam (p : P) => f (inl p)))
+-- 这是一段很经典很有趣的证明，建议仔细读一读
+
+{- 所谓「不是假命题」就是双重否定的一种语义
+   而且这个好消息还有一个推论
+   证明任意「不是假命题」都可以利用 nnlem 在一个小上下文中使用排中律
+   这个性质就留作练习啦 -}
+\func lem-closure {P Q : \Type} (proof : (P || Not P) -> Q) : Not (Not Q) => {?}
+-- 其中的 proof 函数内部上下文就可以使用排中律了
+
+{- 不知道你是否意识到了这是多么好的一个推论
+   只要是形如 Not (Not Q) 的命题，我们都可以在证明的时候使用排中律
+   也就是说通过为命题添加双重否定，我们把经典逻辑嵌入到了直觉主义逻辑中！
+   由于类似结构的命题在处理经典逻辑命题中将会非常常用，所以这里单独为它定义一个类型： -}
+
+\func Classical (P : \Type) => Not (Not P)
+
+-- 练习：为 Classical 定义一些操作
+\func cmap {P Q : \Type} (f : P -> Q) (cp : Classical P) : Classical Q => {?}
+\func cpure {P : \Type} (p : P) : Classical P => {?}
+\func capply {P Q : \Type} (cf : Classical (P -> Q)) (cp : Classical P) : Classical Q => {?}
+\func cbind {P Q : \Type} (cp : Classical P) (cf : P -> Classical Q) : Classical Q => {?}
+
+{- 有了 cmap 我们就可以在函数 f 中像操作普通 Arend 命题一样操作经典逻辑命题
+   而 cpure 给出了把已有命题映射到经典逻辑命题空间的办法
+   这还不够，如果有个函数需要同时用两个经典逻辑命题作为参数呢？
+   如果试图 cmap (\lam p => cmap (\lam q => {?}) cq) cp 就会发现通过 cmap 只能得到 Classical 命题
+   但是 cmap 的参数需要的是非 Classical 命题，可是我们并不能把 Classical 命题变成非 Classical 命题
+   capply 就为我们带来了操作多个参数的能力 capply (capply (\lam p q => {?}) cp) cq
+   至于 cbind 则让多个 Classical 命题的操作有先后顺序，这样就可以处理有依赖关系的命题
+   比如 cbind cp (\lam p => cbind (cq p) (\lam q => {?}))
+   不知道你是否觉得这一组练习很眼熟
+   如果你懂 Haskell 大概会意识到这组练习指出了 Classical 是 Functor, Applicative 而且还是 Monad
+   而且 Classical 能构造却不能解构的性质就很像是 Haskell 中的 IO Monad
+   顺便提一下，非 Classical 命题的 Monad 其实就是 Identity Monad -}
+
+-- 接下来为了方便为 capply 与 cbind 定义了 Haskell 中的符号
+\func \infixl 4 <*> {P Q : \Type} => capply {P} {Q}
+\func \infixl 1 >>= {P Q : \Type} => cbind {P} {Q}
+
+-- 这里给出一个用 Classical 证明的例子
+\func ->=>Not|| {P Q : \Type} (f : P -> Q) : Classical (Not P || Q) =>
+  nnlem P >>= \lam lem =>                          -- 引入排中律，P || Not P
+  \case lem \with {
+    | inl p => cpure (inr (f p))                   -- 如果 P 成立，则可得 f p : Q
+    | inr np => cpure (inl np)                     -- 如果 Not P 成立
+  }
+{- 上面这段代码如果用 Haskell 的 Monad 语法糖大概可以表示为
+   do
+     lem <- nnlem P
+     case lem of
+       inl p -> cpure (inr (f p))
+       inr np -> cpure (inl np)
+   可惜 Arend 并没有针对 Monad 的语法糖（悲） -}
+
+-- 练习：上面那个例子的逆命题
+\func not||=>-> {P Q : \Type} (np||q : Not P || Q) : Classical (P -> Q) => {?}
+
+-- 练习：
+\func cintro {P Q : \Type} (f : P -> Classical Q) : Classical (P -> Q) => {?}
+
+{- 这个练习指出了我们可以通过证明 f (p : P) : Classical Q
+   得到 f : Classical (P -> Q)
+   所以上面的例子也可以得到 -}
+\func ->=>Not||' {P Q : \Type} : Classical ((P -> Q) -> (Not P || Q)) => cintro ->=>Not||
+-- 这样就能更加方便处理 Classical 命题，遇到蕴含可以直接把前提提取到 Classical 外面
+
+-- 练习：双重否定的消去
+\func elim-Notc {P : \Type} (cnnp : Classical (Not (Not P))) : Classical P => {?}
+
+-- 练习：de Morgan 定律
+\func n||=>n&& {P Q : \Type} (npq : Not (P || Q)) : Classical (Not P && Not Q) => {?}
+\func n&&=>n|| {P Q : \Type} (npq : Not (P && Q)) : Classical (Not P || Not Q) => {?}
+
+-- 练习：Forall 与 Exists 的转换
+\func exists=>foralln {A : \Type} {P : A -> \Type} (ne : Not (Exists P)) : Forall (\lam (a : A) => Not (P a)) => {?}
+\func foralln=>exists {A : \Type} {P : A -> \Type} (nf : Forall (\lam (a : A) => Not (P a))) : Not (Exists P) => {?}
+\func existsn=>forall {A : \Type} {P : A -> \Type} (en : Exists (\lam (a : A) => Not (P a))) : Not (Forall P) => {?}
+\func forall=>existsn {A : \Type} {P : A -> \Type} (nf : Not (Forall P)) : Exists (\lam (a : A) => Not (P a)) => {?}
+{- 然后你就会发现，前面几个题都很好证明，唯独最后一个证明不出来
+   不过一看上下文就会感觉这个 forall=>existsn 至少少了个 a : A，这第一步就进行不下去
+   不过看到少了个 a : A 你是否想到使用排中律导进来呢，尝试通过逆否命题引入 Classical 来试试 -}
+
+\func existsn=>cforall {A : \Type} {P : A -> \Type}
+                       (nen : Not (Exists (\lam (a : A) => Not (P a)))) : Classical (Forall P) =>
+  \lam nf => nnlem A (\lam lemA => \case lemA \with {
+    | inl a => nnlem (P a) (\lam lemP => \case lemP \with {
+      | inl pa => nf (\lam a' => {?})
+      | inr npa => nen (a, npa)
+    })
+    | inr na => nf (\lam a => absurd (na a))
+  })
+{- 结果在这里碰壁了，真奇怪啊，难道这个嵌入理论有什么问题吗？
+   仔细再看一下这个函数签名，我们能得到什么呢？ Classical (\Pi (a : A) -> P a)
+   Classical 里面其实是个函数类型诶，不知道你有没有想到前面提到的 Classical (P -> Q)
+   设想 P a 并不依赖 a 的情况，那么这个函数不就是 Not (\Sigma P (Not Q)) -> Classical (P -> Q)
+   也就是上面的 (Not P || Q) -> Classical (P -> Q) 配上 de Morgan 定理
+   既然如此相像，尝试一下上面证明 (P -> Classical Q) -> Classical (P -> Q) 的思路看看吧
+   （其实本质上就是把 nnlem 展开来观察一下）-}
+
+\func existsn=>cforall' {A : \Type} {P : A -> \Type}
+                       (nen : Not (Exists (\lam (a : A) => Not (P a)))) : Classical (Forall P) =>
+  \lam nf => nf (\lam a => absurd (nen (a, \lam pa => nf (\lam a' => {?}))))
+{- 仔细看一下这个证明，它最为可疑的点在于 absurd 处，本来需要提供一个 P a
+   但是这里想用一个 Empty 糊弄过去，但是失败了
+   这么说来要是这里需要的不是 P a 而是 Empty 该多好！
+   那么怎么不改变原意引入 Empty 呢？直接加上双重否定！
+   反映到最终的类型签名上就是在 Forall P 上进行改动 -}
+
+-- 练习：
+\func cintrop' {A : \Type} {P : A -> \Type}
+               (nen : Not (\Sigma  (a : A) (Not (P a)))) : Classical (\Pi (a : A) -> Classical (P a)) => {?}
+
+{- 所以说嵌入到 Classical 的时候，要把原来的 Forall a. P a 中的 P a 递归引入 Classical 之中
+   除非 P a 与 a 的取值无关，或者 A 不存在对象或者只有一个对象（也就是说 a a' : A 的话 a 和 a' 等价）
+   因为在这种特殊情况下很好证明 \Pi (a : A) -> Classical (P a) 是和 Classical (\Pi (a : A) -> P a) 等价的
+   这么一来，我们就得出了在经典逻辑之下所需要特殊处理的 Forall 类型：-}
+\func CForall {A : \Type} (P : A -> \Type) => \Pi (a : A) -> Classical (P a)
+{- 另外，其实这个结论在前面也有所体现
+   比如 nnlem (P : \Type) : Classical (P || Not P)
+   其实也就是 nnlem : \Pi (P : \Type) -> Classical (P || Not P)
+   在操作的时候为了表达 Classical 的语义，\Pi 里面的 Classical 不能去掉或者挪到外面，不然就无法证明了
+   所以为了引入排中律，严格来说我们并不是对命题取双重否定，而是对所有 forall 的后件取双重否定 -}
+
+-- 练习：把普通的函数转换成 CForall 的方法
+\func cforall {A : \Type} {P : A -> \Type} (f : \Pi (a : A) -> P a) : CForall P => {?}
+
+-- 练习：像 cintro 好用的 cintrop
+\func cintrop {A : \Type} {P : A -> \Type} (f : \Pi (a : A) -> Classical (P a)) : Classical (CForall P) => {?}
+-- 类似于 cintro，有了 cintrop 我们就可以等价地将 Forall 挪动到 Classical 外面来方便证明
+
+-- 练习：证明选择公理
+\func ac {I : \Type} {A : I -> \Type}
+         (not-empty : CForall (\lam (i : I) => Not (A i -> Empty))) : Classical (CForall (\lam (i : I) => A i)) => {?}
+{- 有 I 的对象数量个集合，A i 则是 i : I 对应的集合（总共有 I 的对象数量个）
+   选择公理就是说：
+   如果每一个 A i 都非空（也就是参数 not-empty）
+   那么我们可以从每一个 A i 中选出一个元素组成一个新集合
+   （第 i 个集合中选出来的类型肯定是 A i 则新集合的类型就是 \Pi (i : I) -> A i）
+   然后翻译再嵌入 Classical 就得到了 ac 的类型 -}
+
+-- ac not-empty 相当于 introp (ac' not-empty)
+\func ac' {I : \Type} {A : I -> \Type}
+          (not-empty : CForall (\lam (i : I) => Not (A i -> Empty))) (i : I) : Classical (A i) => {?}
+
+-- 换一个角度看，其实选择公理就是带上量词版本的双重否定消去
+
+-- 另外，你可能会好奇嵌入到 Classical 下的 Exists 的引入规则，其实你在上面已经证明过其等价形式了：
+\func csplit' {A : \Type} {P : A -> \Type} (nfnp : Not (Forall (\lam (a : A) => Not (P a)))) : Classical (Exists P) =>
+  intro-Contrapos exists=>foralln nfnp
+-- 并且很显然 Exists 并不需要为嵌入 Classical 作任何修改
+
+-- 练习：更好用的 csplit
+\func csplit {A : \Type} {P : A -> \Type} (ec : Exists (\lam (a : A) => Classical (P a))) : Classical (Exists P) => {?}
+
+-- 再回过头去看前面的 Forall 与 Exists 之间的转换，使用 CForall 了以后就可以证明了
+-- 练习：
+\func cforall=>existsn {A : \Type} {P : A -> \Type}
+                       (nf : Not (CForall P)) : Classical (Exists (\lam (a : A) => Not (P a))) => {?}
+
+{- 添加上量词以后，我们就把经典逻辑嵌入到 Arend 的工作的最后一块拼图完成了
+   经过这么多练习我想你大概已经感受到类型论作为数学基础理论的美妙性了
+   它用非常简单的规则同时包含了「数理逻辑」与「集合论」各自的规则，并把他们紧密相连
+   而且最为重要的是，类型论是可计算的，这对于通过计算机来自动化验证非常友好 -}

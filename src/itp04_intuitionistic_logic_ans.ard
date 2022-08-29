@@ -1,0 +1,108 @@
+\import itp00_basic_arend
+\import itp02_propositions_and_proofs \hiding (empty)
+\import itp04_intuitionistic_logic
+
+-- 练习：排中律闭包
+\func lem-closure {P Q : \Type} (proof : (P || Not P) -> Q) : Not (Not Q) =>
+  \lam (nq : Q -> Empty) => nnlem P (\lam lem => nq (proof lem))
+
+-- 练习：为 Classical 定义一些操作
+\func cmap {P Q : \Type} (f : P -> Q) (cp : Classical P) : Classical Q =>
+  \lam (nq : Q -> Empty) => cp (\lam (p : P) => nq (f p))
+
+\func cpure {P : \Type} (p : P) : Classical P => intro-Not p
+
+\func capply {P Q : \Type} (cf : Classical (P -> Q)) (cp : Classical P) : Classical Q =>
+  \lam (nq : Q -> Empty) => cp (\lam (p : P) => cf (\lam (f : P -> Q) => nq (f p)))
+
+\func cbind {P Q : \Type} (cp : Classical P) (cf : P -> Classical Q) : Classical Q =>
+  \lam (nq : Q -> Empty) => cp (\lam (p : P) => cf p nq)
+
+-- 练习：上面那个例子的逆命题
+\func not||=>-> {P Q : \Type} (np||q : Not P || Q) : Classical (P -> Q) =>
+  cintro (\lam p => \case np||q \with {
+    | inl np => absurd (np p)
+    | inr q => cpure q
+  })
+
+-- 练习：
+\func cintro {P Q : \Type} (f : P -> Classical Q) : Classical (P -> Q) =>
+  \lam (nf : (P -> Q) -> Empty) => nf (\lam (p : P) =>
+    absurd (f p (\lam (q : Q) => nf (\lam _ => q)))
+  )
+
+-- 练习：双重否定的消去
+\func elim-Notc {P : \Type} (cnnp : Classical (Not (Not P))) : Classical P =>
+  cnnp >>= \lam nnp =>
+  nnlem P >>= \lam lem =>
+  cpure (\case lem \with {
+    | inl p => p
+    | inr np => absurd (nnp np)
+  })
+
+-- 练习：de Morgan 定律
+\func n||=>n&& {P Q : \Type} (npq : Not (P || Q)) : Classical (Not P && Not Q) =>
+  nnlem P >>= \lam lemP =>
+  nnlem Q >>= \lam lemQ =>
+  \case lemP \with {
+    | inl p => absurd (npq (inl p))
+    | inr np => \case lemQ \with {
+      | inl q => absurd (npq (inr q))
+      | inr nq => cpure (np, nq)
+    }
+  }
+
+\func n&&=>n|| {P Q : \Type} (npq : Not (P && Q)) : Classical (Not P || Not Q) =>
+  nnlem P >>= \lam lemP =>
+  nnlem Q >>= \lam lemQ =>
+  \case lemP \with {
+    | inl p => \case lemQ \with {
+      | inl q => absurd (npq (p, q))
+      | inr nq => cpure (inr nq)
+    }
+    | inr np => cpure (inl np)
+  }
+
+-- 练习：Forall 与 Exists 的转换
+\func exists=>foralln {A : \Type} {P : A -> \Type} (ne : Not (Exists P)) : Forall (\lam (a : A) => Not (P a)) =>
+  \lam a pa => ne (a, pa)
+
+\func foralln=>exists {A : \Type} {P : A -> \Type} (nf : Forall (\lam (a : A) => Not (P a))) : Not (Exists P) =>
+  \lam ne => nf ne.1 ne.2
+
+\func existsn=>forall {A : \Type} {P : A -> \Type} (en : Exists (\lam (a : A) => Not (P a))) : Not (Forall P) =>
+  \lam fp => en.2 (fp en.1)
+
+\func forall=>existsn {A : \Type} {P : A -> \Type} (nf : Not (Forall P)) : Exists (\lam (a : A) => Not (P a)) =>
+  {?} -- 证不出来的，别想了（
+
+-- 练习：
+\func cintrop' {A : \Type} {P : A -> \Type}
+               (ncenp : Not (\Sigma (a : A) (Not (P a)))) : Classical (\Pi (a : A) -> Classical (P a)) =>
+  \lam nf => nf (\lam a npa => ncenp (a, npa))
+
+-- 练习：把普通的函数转换成 CForall 的方法
+\func cforall {A : \Type} {P : A -> \Type} (f : Forall P) : CForall P =>
+  \lam a => cpure (f a)
+
+-- 练习：像 cintro 好用的 cintrop
+\func cintrop {A : \Type} {P : A -> \Type} (f : \Pi (a : A) -> Classical (P a)) : Classical (CForall P) =>
+  cintrop' (\lam ea => f ea.1 ea.2)
+
+-- 练习：证明选择公理
+\func ac {I : \Type} {A : I -> \Type}
+         (not-empty : CForall (\lam (i : I) => Not (A i -> Empty))) : Classical (CForall (\lam (i : I) => A i)) =>
+  cintrop (\lam i => elim-Notc (not-empty i))
+
+-- 练习：更好用的 csplit
+\func csplit {A : \Type} {P : A -> \Type} (ec : Exists (\lam (a : A) => Classical (P a))) : Classical (Exists P) =>
+  csplit' (\lam fn => ec.2 (fn ec.1))
+
+-- 再回过头去看前面的 Forall 与 Exists 之间的转换，使用 CForall 了以后就可以证明了
+-- 练习：
+\func cforall=>existsn {A : \Type} {P : A -> \Type}
+                       (nf : Not (CForall P)) : Classical (Exists (\lam (a : A) => Not (P a))) =>
+  csplit' (\lam cf => nf cf)
+
+
+
