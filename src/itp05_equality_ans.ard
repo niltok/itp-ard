@@ -1,0 +1,96 @@
+\import itp00_basic_arend \hiding (++)
+\import itp00_basic_arend_ans (++)
+\import itp01_dependent_type
+\import itp05_equality
+\open Nat
+
+-- 证明：对于任意 x : Nat 来说 x == x 成立
+\func reflN {x : Nat} : T (x ==N x)
+  | {0} => unit
+  | {suc n} => reflN {n}
+
+-- 证明：如果有 a == b 则有 b == a 成立
+\func symN {a b : Nat} (p : T (a ==N b)) : T (b ==N a)
+  | {0}, {0}, _ => reflN {0}
+  | {suc _}, {suc _}, p => symN p
+
+-- 证明：如果有 a == b 且 b == c 则 a == c
+\func transN {a b c : Nat} (p : T (a ==N b)) (q : T (b ==N c)) : T (a ==N c)
+  | {0}, {0}, {0}, _, _ => reflN {0}
+  | {suc _}, {suc _}, {suc _}, p, q => transN p q
+
+-- 证明：如果 a = b 则 f a = f b
+\func pmap {A B : \Type} (f : A -> B) {a b : A} (p : a = b) : f a = f b =>
+  path (\lam i => f (p @ i))
+
+-- 证明：如果对于所有 a 来说 f a = g a 则 f = g
+\func funExt {A B : \Type} {f g : A -> B} (p : \Pi (a : A) -> f a = g a) : f = g =>
+  path (\lam i => \lam a => p a @ i)
+
+-- 证明：如果 a = a' 且 B a 成立，则 B a' 也成立
+\func transport {A : \Type} (B : A -> \Type) {a a' : A} (p : a = a') (b : B a) : B a' =>
+  coe (\lam i => B (p @ i)) b right
+
+-- 证明：Path 是等价关系
+\func sym {A : \Type} {a b : A} (p : a = b) : b = a =>
+  transport (\lam x => x = a) p idp
+-- 把 a = a 中左边的 a 用 b 替换
+
+\func trans {A : \Type} {a b c : A} (p : a = b) (q : b = c) : a = c =>
+  transport (\lam x => a = x) q p
+-- 把 a = b 中的 b 用 c 替换
+
+-- 证明：0 = 1 不成立
+\func proof-0!=1 (p : 0 = 1) : Empty =>
+  transport (\lam n => \case n \with { | 0 => Unit | suc _ => Empty }) p unit
+
+-- 证明 n + m = m + n
+\func +-comm {n m : Nat} : n + m = m + n \elim n
+  | 0 => idp
+  | suc _ => pmap suc +-comm
+
+-- 证明 (a + b) + c = a + (b + c)
+\func +-assoc {a b c : Nat} : (a + b) + c = a + (b + c) \elim a
+  | 0 => idp
+  | suc _ => pmap suc +-assoc
+
+-- 证明 (a ++ b) ++ c = a ++ (b ++ c)
+\func ++-assoc {A : \Type} {a b c : List A} : (a ++ b) ++ c = a ++ (b ++ c) \elim a
+  | nil => idp
+  | cons x xs => pmap (cons x) ++-assoc
+
+\func rev-rev-id {A : \Type} (xs : List A) : rev (rev xs) = xs => rev'-rev'-id xs nil
+  \where \func rev'-rev'-id {A : \Type} (xs : List A) (ys : List A) : rev (rev.rev' xs ys) = rev.rev' ys xs \elim xs
+    | nil => idp
+    | cons x xs => rev'-rev'-id xs (cons x ys)
+
+\func rev+-cons-++ {A : \Type} (x : A) (xs ys : List A) : rev+ (cons x xs) ++ ys = rev+ xs ++ cons x ys => ++-assoc
+-- 查看 {?} 可知需要得到 (rev+ xs ++ cons x nil) ++ ys = rev+ xs ++ cons x ys
+-- 注意其中的 cons x nil ++ ys 能得到 cons x ys
+-- 也就是说需要 (rev+ xs ++ cons x nil) ++ ys = rev+ xs ++ (cons x nil ++ ys)
+
+\func rev=rev+ {A : \Type} : rev {A} = rev+ {A} => funExt rev-xs=rev+-xs
+  \where {
+    \func rev-xs=rev+-xs {A : \Type} (xs : List A) : rev xs = rev+ xs => trans (rev'=rev+-++ xs nil) ++-nil
+    \func rev'=rev+-++ {A : \Type} (xs ys : List A) : rev.rev' xs ys = rev+ xs ++ ys \elim xs
+      | nil => idp
+      | cons x xs => trans (rev'=rev+-++ xs (cons x ys)) (sym ++-assoc) -- 类似上面的处理方式
+    \func ++-nil {A : \Type} {xs : List A} : xs ++ nil = xs \elim xs
+      | nil => idp
+      | cons x xs => pmap (cons x) ++-nil
+  }
+
+\func rev+-rev+-id {A : \Type} (xs : List A) : rev+ (rev+ xs) = xs =>
+  transport (\lam r => r (r xs) = xs) rev=rev+ (rev-rev-id xs)
+
+-- 证明：Vec 的连接符合结合律
+\func v++-assoc {A : \Type} {a b c : Nat} (xs : Vec A a) (ys : Vec A b) (zs : Vec A c)
+  : (xs v++ ys) v++ zs = transport (Vec A) (sym +-assoc) (xs v++ (ys v++ zs)) \elim a, xs
+  | 0, vnil => idp
+  | suc a, vcons x xs => trans (pmap (vcons x) (v++-assoc xs ys zs)) (extract-vcons +-assoc x (xs v++ (ys v++ zs)))
+  \where {
+    \func extract-vcons {A : \Type} {n m : Nat} (p : n = m) (x : A) (xs : Vec A m)
+      : vcons x (transport (Vec A) (sym p) xs) = transport (Vec A) (sym (pmap suc p)) (vcons x xs) \elim p
+      | idp => idp
+  }
+

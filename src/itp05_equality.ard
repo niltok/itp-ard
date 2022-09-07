@@ -1,0 +1,149 @@
+-- ITP05: 相等性
+
+\import itp00_basic_arend \hiding (++)
+\import itp00_basic_arend_ans (++)
+\import itp01_dependent_type
+\open Nat
+
+-- 先做一组课前小练习
+
+-- 首先，我们有对于整数相等性的判断函数
+\func \infix 1 ==N (a b : Nat) : Bool
+  | 0, 0 => true
+  | 0, suc _ => false
+  | suc _, 0 => false
+  | suc a, suc b => a ==N b
+
+-- 证明：对于任意 x : Nat 来说 x == x 成立
+\func reflN {x : Nat} : T (x ==N x) => {?}
+-- 证明：如果有 a == b 则有 b == a 成立
+\func symN {a b : Nat} (p : T (a ==N b)) : T (b ==N a) => {?}
+-- 证明：如果有 a == b 且 b == c 则 a == c
+\func transN {a b c : Nat} (p : T (a ==N b)) (q : T (b ==N c)) : T (a ==N c) => {?}
+
+{- 以上三条证明说明了 T (a ==N b) 是一个在整数上的等价关系
+   即满足自反性，对称性，传递性的关系
+   实际上我们可以通过满足这三种性质定义一个类型来描述所有的等价关系 -}
+\func EquivRel (A : \Type) => \Sigma
+  (rel : A -> A -> \Type)
+  (refl : \Pi {x : A} -> rel x x)
+  (sym : \Pi {x y : A} -> rel x y -> rel y x)
+  (trans : \Pi {x y z : A} -> rel x y -> rel y z -> rel x z)
+
+{- 那么是否存在比较通用的，也就是说对所有类型成立的，等价关系呢？
+   数学家们在这个问题上研究出了很多成果
+   比如莱布尼兹（就是提出微积分的那位）提出的不可分者同一性定理指出如果两个对象的所有性质都相同那么两个对象等价
+   比如 Martin-Löf Type Theory 中的 Identity Type 认为等价对象只能通过 refl 构造
+   而 Arend 中使用的则是同伦类型论 (Homotopy Type Theory) 中的思路
+   Arend 中有个特殊的内置类型 I，它有 left 和 right 两个构造器，但是我们无法在函数中匹配它 -}
+\func try-to-elim-I (i : I) : Bool
+  | left => true
+  | right => false
+{- 像上面这样尝试匹配 I 就会报错
+   另外你可以通过按住 Ctrl 左键上面的 I 看到其在 Prelude 中的定义
+   不过还是要强调它的实际行为和普通的 \data 类型不一样
+   既然 I 没有办法匹配，那么在定义函数 f : I -> A 的时候无论如何 f left 和 f right 都是相等的
+   因为我们无法区分 left 和 right 所以也无法区分 f left 和 f right
+   不过虽然这样能说明 f left 和 f right 相等我们却没法指定它们分别是啥
+   在 Prelude 中有个 叫 Path 的类型则可以让我们定义 -}
+\func path-example (A : \Type) (f : I -> A) : Path (\lam (i : I) => A) (f left) (f right) => path f
+{- Path 的内部表示可以按住 Ctrl 左键点击上面的 Path 看看在 Prelude 中的定义
+   这里同样也要强调它和普通的 \data 类型行为不一样，不要尝试自己定义它
+   当你尝试定义 path f : Path (\lam _ => A) a b 的时候编译器会计算 f left 和 f right 并检查是否能得到 a 和 b
+   如果不能则会报错： -}
+\func false-path : Path (\lam _ => Bool) true false => path (\lam _ => true)
+{- 另外，Path 的第一个参数指出了后面两个相等对象的类型，而这个类型是依赖 i 是 left 还是 right 的
+   Prelude 中还有个同一个类型下的 Path 的非依赖版本 "=" ： -}
+\func =-example (A : \Type) (f : I -> A) : f left = f right => path f
+-- 等价于                                 : = {A} (f left) (f right) => path f
+
+{- 为了方便使用 Path，Prelude 中还定义了一个 "@" 操作符用来方便操作封装的函数
+   path f @ i 就相当于 f i -}
+\func @-example (A : \Type) (a b : A) (p : a = b) : p @ left = a => path (\lam _ => a)
+-- 另外 Prelude 中对于 path (\lam _ => a) 或者说自反性有预定义函数叫 idp
+\func refl (A : \Type) (a : A) : a = a => idp {A} {a}
+
+-- 证明：如果 a = b 则 f a = f b
+\func pmap {A B : \Type} (f : A -> B) {a b : A} (p : a = b) : f a = f b => {?}
+
+-- 证明：如果对于所有 a 来说 f a = g a 则 f = g
+\func funExt {A B : \Type} {f g : A -> B} (p : \Pi (a : A) -> f a = g a) : f = g => {?}
+-- 这个证明给出了判断两个函数等价的办法
+
+{- 再看 Path 的定义中有个 A : I -> \Type，Path 的左手边的对象类型为 A left 右手边的对象类型为 A right
+   回想之前的 f : I -> A 那么可以想到其中的 A 是不是可以为 \Type
+   那么 I -> \Type 就是在表示类型上的等价，而 Path 的两端的对象的类型必须是等价的
+   而有了类型上的等价，以及等价类型的对象之间的等价，那么想必也是有等价类型之间的类型转换的
+   在 Prelude 中有个叫 coe 的函数可以把 A left 类型的对象变成 A right 类型 -}
+\func coe-example (A : I -> \Type) (a : A left) : A right => coe A a right
+-- 有了 coe 以后我们就可以用它来证明很多奇妙的东西，比如 left = right
+\func left=right : left = right => coe (\lam x => left = x) idp right
+
+-- 证明：如果 a = a' 且 B a 成立，则 B a' 也成立
+\func transport {A : \Type} (B : A -> \Type) {a a' : A} (p : a = a') (b : B a) : B a' => {?}
+-- 利用这个函数，我们可以把一个类型中的一部分对象替换成另一部分对象
+
+-- 证明：Path 是等价关系
+\func sym {A : \Type} {a b : A} (p : a = b) : b = a => {?}
+\func trans {A : \Type} {a b c : A} (p : a = b) (q : b = c) : a = c => {?}
+\func =-equiv-rel {A : \Type} : EquivRel A => (=, idp, sym, trans)
+-- 另外，sym 在 Arend-lib 中被定义为 inv，trans 被定义为 *> 运算符
+
+-- 证明：0 = 1 不成立
+\func proof-0!=1 (p : 0 = 1) : Empty => {?}
+{- 提示：我们可以定义一个函数 f 匹配 n，当 n 为 0 时得到非 Empty 类型，当它为 1 时得到 Empty
+        因为 f 0 为非 Empty 类型所以可以构造它的实例
+        而又因为有 0 = 1 所以可以将 f 0 中的 0 替换成 1 从而得到 f 1 的对象
+        而 f 1 的类型为 Empty -}
+
+-- 证明 n + m = m + n
+\func +-comm {n m : Nat} : n + m = m + n => {?}
+-- 提示：归纳 n 来证明
+
+-- 证明 (a + b) + c = a + (b + c)
+\func +-assoc {a b c : Nat} : (a + b) + c = a + (b + c) => {?}
+
+-- 证明 (a ++ b) ++ c = a ++ (b ++ c)
+\func ++-assoc {A : \Type} {a b c : List A} : (a ++ b) ++ c = a ++ (b ++ c) => {?}
+
+-- 这里给出一个关于复杂实践下上述知识的组合练习
+-- 如同之前 Vec 的 reverse 一样 List 的 reverse 有多种写法
+\func rev {A : \Type} (xs : List A) : List A => rev' xs nil
+  \where \func rev' {A : \Type} (xs ys : List A) : List A \elim xs
+    | nil => ys
+    | cons x xs => rev' xs (cons x ys)
+\func rev+ {A : \Type} (xs : List A) : List A \elim xs
+  | nil => nil
+  | cons x xs => rev+ xs ++ cons x nil
+
+-- 对于上面的 rev 来说呢，我们很好证明 rev (rev xs) = xs
+\func rev-rev-id {A : \Type} (xs : List A) : rev (rev xs) = xs => {?}
+-- 提示：rev' xs ys 与 rev' ys xs 相反
+
+-- 而对于 rev+ 来说，rev+ (cons x xs) ++ ys = rev+ xs ++ cons x ys
+\func rev+-cons-++ {A : \Type} (x : A) (xs ys : List A) : rev+ (cons x xs) ++ ys = rev+ xs ++ cons x ys => {?}
+{- 但是反过来我们很难直接证明 rev+ (rev+ xs) = xs
+   以及 rev (cons x xs) ++ ys = rev xs ++ cons x ys
+   但是我们能证明 rev 与 rev+ 等价 -}
+\func rev=rev+ {A : \Type} : rev {A} = rev+ {A} => {?}
+-- 提示：仔细考虑如何设计引理来简化证明
+
+-- 然后通过 transport 将对于 rev 成立的证明变成对于 rev+ 成立的证明
+\func rev+-rev+-id {A : \Type} (xs : List A) : rev+ (rev+ xs) = xs => {?}
+
+{- Path 类型也是可以被匹配的，不过它的匹配行为和一般的类型不太一样
+   首先，我们只能匹配一条 Path 为 idp
+   然后，在 \elim 后的上下文中编译器知道 Path 两端的量是相等的
+   这里拿 transport 函数举个例子 -}
+\func transport' {A : \Type} (B : A -> \Type) {a a' : A} (p : a = a') (b : B a) : B a' \elim p
+  | idp => {?}
+{- 注意到 {?} 的上下文中，本来所需类型为 B a' 而在 \elim p 之后被替换成了 B a，因为编译器通过 p 得知 a' 就是 a
+   此时把 {?} 替换成 b 即可通过编译器检查 -}
+
+-- 证明：Vec 的连接符合结合律
+\func v++-assoc {A : \Type} {a b c : Nat} (xs : Vec A a) (ys : Vec A b) (zs : Vec A c)
+  : (xs v++ ys) v++ zs = transport (Vec A) (sym +-assoc) (xs v++ (ys v++ zs)) => {?}
+{- 注意 (xs v++ ys) v++ zs : Vec A ((a + b) + c)
+   而   xs v++ (ys v++ zs) : Vec A (a + (b + c))
+   本来是无法直接比较的，但是这里用一个 transport 把后者的参数变换成和前者一样
+   提示：基于复杂 Path 构造的复杂表达式，可以考虑把两边重命名一下然后匹配 Path 再化简表达式 -}
